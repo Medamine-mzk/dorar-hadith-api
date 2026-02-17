@@ -1,0 +1,11 @@
+# Don't ignore API docs
+!api-docs/
+!api-docs/openapi.yaml
+
+# Ignore these instead
+node_modules/
+.env
+.env.local
+tests/
+*.test.js
+.git/
