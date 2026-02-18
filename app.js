@@ -3,6 +3,8 @@ const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const helmet = require('helmet');
 const timeout = require('connect-timeout');
+const path = require('path');
+const fs = require('fs');
 
 const docs = require('./docs');
 const hadithSearchRouter = require('./routes/hadithSearch.routes');
@@ -16,7 +18,20 @@ const AppError = require('./utils/AppError');
 
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
-const swaggerDocument = YAML.load('api-docs/openapi.yaml');
+
+// SAFE SWAGGER LOADING - Replace lines 21-23
+let swaggerDocument = null;
+try {
+  const yamlPath = path.join(__dirname, 'api-docs', 'openapi.yaml');
+  if (fs.existsSync(yamlPath)) {
+    swaggerDocument = YAML.load(yamlPath);
+    console.log('✅ Swagger documentation loaded');
+  } else {
+    console.warn('⚠️ openapi.yaml not found - swagger docs disabled');
+  }
+} catch (error) {
+  console.error('Failed to load swagger docs:', error.message);
+}
 
 const app = express();
 
@@ -74,8 +89,23 @@ app.use('/v1', mohdithSearchRouter);
 app.use('/v1', bookSearchRouter);
 app.use('/v1', dataRouter);
 
-// Serve Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Serve Swagger UI - CONDITIONAL (Replace line 67)
+if (swaggerDocument) {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+} else {
+  app.get('/api-docs', (req, res) => {
+    res.json({ 
+      message: 'API Documentation',
+      note: 'Swagger UI unavailable in this environment',
+      endpoints: {
+        hadithSearch: '/v1/api/hadith/search',
+        sharhSearch: '/v1/site/sharh/search',
+        mohdithSearch: '/v1/site/mohdith/search',
+        bookSearch: '/v1/site/book/search'
+      }
+    });
+  });
+}
 
 // 404 Handler
 app.all('*', (req, res, next) => {
